@@ -87,7 +87,12 @@ export const isTransactionPayloadValidator = [
   body("amount").isNumeric().trim().toInt(),
 ];
 
-export const isTransactionPatchValidator = [body("requestStatus").isIn(RequestStatusValues)];
+export const isTransactionPatchValidator = [
+  body("requestStatus").isIn([
+    TransactionRequestStatus.accepted,
+    TransactionRequestStatus.rejected,
+  ]),
+];
 
 export const isTransactionPublicQSValidator = [
   query("order").optional({ checkFalsy: true }).isIn(["default"]),

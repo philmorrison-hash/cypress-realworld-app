@@ -60,6 +60,7 @@ import {
   getQueryWithoutFilterFields,
   getPayAppCreditedAmount,
   isRequestTransaction,
+  isPendingRequestTransaction,
   formatFullName,
   isLikeNotification,
   isCommentNotification,
@@ -581,11 +582,20 @@ export const updateTransactionById = (transactionId: string, edits: Partial<Tran
   const sender = getUserById(senderId);
   const receiver = getUserById(receiverId);
 
-  // if payment, debit sender's balance for payment amount
-  if (isRequestTransaction(transaction)) {
+  const isResolvingRequest =
+    isPendingRequestTransaction(transaction) &&
+    (edits.requestStatus === TransactionRequestStatus.accepted ||
+      edits.requestStatus === TransactionRequestStatus.rejected);
+
+  if (isResolvingRequest) {
+    edits.status = TransactionStatus.complete;
+    edits.requestResolvedAt = new Date();
+  }
+
+  // only move funds once, on the pending -> accepted transition
+  if (isResolvingRequest && edits.requestStatus === TransactionRequestStatus.accepted) {
     debitPayAppBalance(receiver, transaction);
     creditPayAppBalance(sender, transaction);
-    edits.status = TransactionStatus.complete;
 
     createPaymentNotification(
       transaction.senderId,
