@@ -194,6 +194,55 @@ describe("Transactions", () => {
     expect(updatedTransaction.requestStatus).toEqual("accepted");
   });
 
+  it("should move funds only once when a pending request is accepted", () => {
+    const requester: User = getAllUsers()[0];
+    const payer: User = getAllUsers()[1];
+    const requesterBalance = requester.balance;
+    const requestAmount = 10;
+
+    const transaction = createTransaction(requester.id, "request", {
+      source: getBankAccountsByUserId(requester.id)[0].id!,
+      senderId: requester.id,
+      receiverId: payer.id,
+      description: `Request: ${requester.id} to ${payer.id}`,
+      amount: requestAmount,
+      privacyLevel: DefaultPrivacyLevel.public,
+      status: TransactionStatus.pending,
+    });
+
+    const accept: Partial<Transaction> = { requestStatus: TransactionRequestStatus.accepted };
+    updateTransactionById(transaction.id, { ...accept });
+    updateTransactionById(transaction.id, { ...accept });
+    updateTransactionById(transaction.id, { requestStatus: TransactionRequestStatus.rejected });
+
+    const updatedTransaction = getTransactionById(transaction.id);
+    expect(updatedTransaction.status).toEqual(TransactionStatus.complete);
+    expect(getUserById(requester.id).balance).toBe(requesterBalance + requestAmount * 100);
+  });
+
+  it("should not move funds when a pending request is rejected", () => {
+    const requester: User = getAllUsers()[0];
+    const payer: User = getAllUsers()[1];
+    const requesterBalance = requester.balance;
+    const payerBalance = payer.balance;
+
+    const transaction = createTransaction(requester.id, "request", {
+      source: getBankAccountsByUserId(requester.id)[0].id!,
+      senderId: requester.id,
+      receiverId: payer.id,
+      description: `Request: ${requester.id} to ${payer.id}`,
+      amount: 10,
+      privacyLevel: DefaultPrivacyLevel.public,
+      status: TransactionStatus.pending,
+    });
+
+    updateTransactionById(transaction.id, { requestStatus: TransactionRequestStatus.rejected });
+    updateTransactionById(transaction.id, { requestStatus: TransactionRequestStatus.accepted });
+
+    expect(getUserById(requester.id).balance).toBe(requesterBalance);
+    expect(getUserById(payer.id).balance).toBe(payerBalance);
+  });
+
   it("should add additional fields (e.g. retreiverName, senderName, etc) to a list of transactions for a user for API response", () => {
     const userToLookup: User = getAllUsers()[0];
 

@@ -144,11 +144,54 @@ describe("Transactions API", function () {
   });
 
   context("PATCH /transactions/:transactionId", function () {
+    const findPendingRequest = (isReceiver: boolean) =>
+      cy
+        .database("filter", "transactions")
+        .then((transactions: Transaction[]) =>
+          transactions.find(
+            (t) =>
+              t.requestStatus === "pending" &&
+              (t.receiverId === ctx.authenticatedUser!.id) === isReceiver &&
+              t.senderId !== ctx.authenticatedUser!.id
+          )
+        );
+
     it("updates a transaction", function () {
-      cy.request("PATCH", `${apiTransactions}/${ctx.transactionId}`, {
-        requestStatus: "rejected",
-      }).then((response) => {
-        expect(response.status).to.eq(204);
+      findPendingRequest(true).then((transaction: Transaction) => {
+        cy.request("PATCH", `${apiTransactions}/${transaction.id}`, {
+          requestStatus: "rejected",
+        }).then((response) => {
+          expect(response.status).to.eq(204);
+        });
+      });
+    });
+
+    it("errors when the user is not the receiver of the request", function () {
+      findPendingRequest(false).then((transaction: Transaction) => {
+        cy.request({
+          method: "PATCH",
+          url: `${apiTransactions}/${transaction.id}`,
+          failOnStatusCode: false,
+          body: { requestStatus: "accepted" },
+        }).then((response) => {
+          expect(response.status).to.eq(403);
+        });
+      });
+    });
+
+    it("errors when the request has already been resolved", function () {
+      findPendingRequest(true).then((transaction: Transaction) => {
+        cy.request("PATCH", `${apiTransactions}/${transaction.id}`, {
+          requestStatus: "accepted",
+        });
+        cy.request({
+          method: "PATCH",
+          url: `${apiTransactions}/${transaction.id}`,
+          failOnStatusCode: false,
+          body: { requestStatus: "accepted" },
+        }).then((response) => {
+          expect(response.status).to.eq(409);
+        });
       });
     });
 

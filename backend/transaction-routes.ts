@@ -6,6 +6,7 @@ import {
   getTransactionsForUserContacts,
   createTransaction,
   updateTransactionById,
+  getTransactionById,
   getPublicTransactionsDefaultSort,
   getTransactionByIdForApi,
   getTransactionsForUserForApi,
@@ -21,7 +22,7 @@ import {
   isTransactionPatchValidator,
   isTransactionPublicQSValidator,
 } from "./validators";
-import { getPaginatedItems } from "../src/utils/transactionUtils";
+import { getPaginatedItems, isPendingRequestTransaction } from "../src/utils/transactionUtils";
 const router = express.Router();
 
 // Routes
@@ -174,9 +175,22 @@ router.patch(
   validateMiddleware([shortIdValidation("transactionId"), ...isTransactionPatchValidator]),
   (req, res) => {
     const { transactionId } = req.params;
+    const transaction = getTransactionById(transactionId);
+
+    if (!transaction) {
+      return res.sendStatus(404);
+    }
+
+    if (transaction.receiverId !== req.user?.id) {
+      return res.sendStatus(403);
+    }
+
+    if (!isPendingRequestTransaction(transaction)) {
+      return res.sendStatus(409);
+    }
 
     /* istanbul ignore next */
-    updateTransactionById(transactionId, req.body);
+    updateTransactionById(transactionId, { requestStatus: req.body.requestStatus });
 
     res.sendStatus(204);
   }
