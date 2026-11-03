@@ -30,6 +30,15 @@ export const userFieldsValidator = oneOf([
   check("defaultPrivacyLevel").exists(),
 ]);
 
+export const userUpdateFieldsValidator = oneOf([
+  check("firstName").exists(),
+  check("lastName").exists(),
+  check("email").exists(),
+  check("phoneNumber").exists(),
+  check("avatar").exists(),
+  check("defaultPrivacyLevel").exists(),
+]);
+
 export const isBankAccountValidator = [
   body("bankName").isString().trim(),
   body("accountNumber").isString().trim(),

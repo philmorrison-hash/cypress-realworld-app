@@ -180,6 +180,54 @@ describe("Users API", function () {
       });
     });
 
+    it("does not allow updating another user", function () {
+      cy.request({
+        method: "PATCH",
+        url: `${apiUsers}/${ctx.searchUser!.id}`,
+        failOnStatusCode: false,
+        body: {
+          firstName: "Hacked",
+        },
+      }).then((response) => {
+        expect(response.status).to.eq(401);
+      });
+
+      cy.database("find", "users", { id: ctx.searchUser!.id }).then((user: User) => {
+        expect(user.firstName).to.eq(ctx.searchUser!.firstName);
+      });
+    });
+
+    it("ignores fields that are not editable", function () {
+      cy.request("PATCH", `${apiUsers}/${ctx.authenticatedUser!.id}`, {
+        firstName: "Updated",
+        balance: 999999999,
+        username: "takenOver",
+        password: "newpassword",
+      }).then((response) => {
+        expect(response.status).to.eq(204);
+      });
+
+      cy.database("find", "users", { id: ctx.authenticatedUser!.id }).then((user: User) => {
+        expect(user.firstName).to.eq("Updated");
+        expect(user.balance).to.eq(ctx.authenticatedUser!.balance);
+        expect(user.username).to.eq(ctx.authenticatedUser!.username);
+        expect(user.password).to.eq(ctx.authenticatedUser!.password);
+      });
+    });
+
+    it("errors when only non-editable fields are sent", function () {
+      cy.request({
+        method: "PATCH",
+        url: `${apiUsers}/${ctx.authenticatedUser!.id}`,
+        failOnStatusCode: false,
+        body: {
+          balance: 999999999,
+        },
+      }).then((response) => {
+        expect(response.status).to.eq(422);
+      });
+    });
+
     it("errors when an invalid field sent", function () {
       cy.request({
         method: "PATCH",

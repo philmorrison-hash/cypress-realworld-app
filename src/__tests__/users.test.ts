@@ -1,5 +1,12 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { seedDatabase, getAllUsers, searchUsers } from "../../backend/database";
+import bcrypt from "bcryptjs";
+import {
+  seedDatabase,
+  getAllUsers,
+  searchUsers,
+  updateUserById,
+  getUserById,
+} from "../../backend/database";
 
 import { User } from "../models";
 
@@ -49,5 +56,15 @@ describe("Users", () => {
     const users = searchUsers("201");
 
     expect(users.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should hash the password when updating a user", () => {
+    const { id } = getAllUsers()[0];
+
+    updateUserById(id, { password: "newpassword" });
+
+    const updatedUser: User = getUserById(id);
+    expect(updatedUser.password).not.toBe("newpassword");
+    expect(bcrypt.compareSync("newpassword", updatedUser.password)).toBe(true);
   });
 });
