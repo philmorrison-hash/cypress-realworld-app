@@ -18,9 +18,19 @@ import {
   shortIdValidation,
   searchValidation,
   userFieldsValidator,
+  userUpdateFieldsValidator,
   isUserValidator,
 } from "./validators";
 const router = express.Router();
+
+const userEditableFields = [
+  "firstName",
+  "lastName",
+  "email",
+  "phoneNumber",
+  "avatar",
+  "defaultPrivacyLevel",
+];
 
 // Routes
 router.get("/", ensureAuthenticated, (req, res) => {
@@ -81,12 +91,19 @@ router.get("/profile/:username", (req, res) => {
 router.patch(
   "/:userId",
   ensureAuthenticated,
-  userFieldsValidator,
+  userUpdateFieldsValidator,
   validateMiddleware([shortIdValidation("userId"), ...isUserValidator]),
   (req, res) => {
     const { userId } = req.params;
 
-    const edits: User = req.body;
+    // Permission: account owner
+    if (!isEqual(userId, req.user?.id)) {
+      return res.status(401).send({
+        error: "Unauthorized",
+      });
+    }
+
+    const edits: Partial<User> = pick(userEditableFields, req.body);
 
     updateUserById(userId, edits);
 
